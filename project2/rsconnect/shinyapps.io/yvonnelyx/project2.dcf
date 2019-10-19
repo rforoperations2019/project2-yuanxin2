@@ -1,0 +1,12 @@
+name: project2
+title: project2
+username:
+account: yvonnelyx
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1351918
+bundleId: 2514974
+url: https://yvonnelyx.shinyapps.io/project2/
+when: 1571505156.94271
+asMultiple: FALSE
+asStatic: FALSE

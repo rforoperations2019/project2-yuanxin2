@@ -18,6 +18,8 @@ library(shinydashboard)
 library(reshape2)
 library(plotly)
 require(leaflet)
+library(leaflet.extras)
+library(rgdal)
 
 #Loading data and cleaning------------------------------
 arrest <- read.csv("arrest.csv",fileEncoding="UTF-8-BOM",header=TRUE, check.names = FALSE)
@@ -25,7 +27,7 @@ arrest <- read.csv("arrest.csv",fileEncoding="UTF-8-BOM",header=TRUE, check.name
 arrest$ARRESTTIME <- as.Date(arrest$ARRESTTIME,format='%m/%d/%Y')
 
 # Application header & title ----------------------------------------------
-header <- dashboardHeader(title = "PGH Arrest")
+header <- dashboardHeader(title = "2019 PGH Arrest")
 
 # Dashboard Sidebar ----------------------------------------------
 sidebar <- dashboardSidebar(
@@ -50,17 +52,12 @@ sidebar <- dashboardSidebar(
     
     #Slider Input for year ------------------------------------------- 
     sliderInput("yearSelect",
-                "Release Year:",
+                "Arrest Record Age:",
                 min = min(arrest$ARRESTTIME, na.rm = T),
                 max = max(arrest$ARRESTTIME, na.rm = T),
                 value = c(min(arrest$ARRESTTIME, na.rm = T), max(arrest$ARRESTTIME, na.rm = T)),
                 step = 1),
     
-    # Select sample size -----------------------------------------------
-    numericInput(inputId = "n_samp", 
-                 label = "Sample size:", 
-                 min = 1, max = nrow(arrest), 
-                 value = 500),
     
     # Download Button -----------------------------------------------
     downloadButton('downloadData', 'Download data')
@@ -116,25 +113,19 @@ server <- function(input, output) {
              AGE20 %in% input$selected_agegroup)
   })
   
-  # Create new df that is n_samp obs from selected characters
-  arrest_sample <- reactive({ 
-    req(input$n_samp) # ensure availablity of value before proceeding
-    sample_n(arrest_subset(), input$n_samp)
-  })
-  
   
   # histogram displaying arrest frquency---------------------------
   output$hist <- renderPlot({
-    dat <- arrest_sample()
+    dat <- arrest_subset()
     ggplot(data = dat, aes_string(x = dat$ARRESTTIME, fill = input$z)) +
-      geom_histogram(binwidth = 20)+ scale_color_brewer()
+      geom_histogram(binwidth = 20)+ scale_color_brewer()+labs(title = "Arrest Frequency By Time" )
   })
   
   #box chart display the demographic of arrest records----------------------------
   output$boxplot <- renderPlot({
-    dat <- arrest_sample()
+    dat <- arrest_subset()
     ggplot(data = dat, aes_string(x = input$z, y=dat$AGE, color=input$z)) + 
-      geom_boxplot()+labs(title = paste("Boxplot: ","Average Playtime"," By ",input$z) )
+      geom_boxplot()+labs(title = paste("Boxplot: ","Age"," By ",input$z) )
   }
   )
   
@@ -152,7 +143,7 @@ server <- function(input, output) {
   #Setting leafletproxy to make the map reactive -------------------------------------
   observe({ 
     req(input$tab_being_displayed == "Arrest Records Map")
-    dat <- arrest_sample()
+    dat <- arrest_subset()
     leafletProxy("arrestmap", data = dat) %>%
       clearHeatmap() %>%
       clearMarkerClusters()%>%
@@ -169,7 +160,7 @@ server <- function(input, output) {
   
   # datatable setting -------------------------------------
   output$arresttable <- DT::renderDataTable({
-    DT::datatable(data = arrest_sample(), 
+    DT::datatable(data = arrest_subset(), 
                   options = list(pageLength = 17), 
                   rownames = FALSE)
   }
@@ -183,7 +174,7 @@ server <- function(input, output) {
       paste("arrestdatasample",gsub(":","-",Sys.time()), ".csv", sep="")
     },
     content = function(file) {
-      write.csv(arrest_sample(), file, row.names = FALSE)
+      write.csv(arrest_subset(), file, row.names = FALSE)
     })
   
   
